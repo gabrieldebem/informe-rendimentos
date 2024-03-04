@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
@@ -17,7 +19,7 @@ func main() {
 		Broker: 2,
 	}
 	getDB().First(&client, 1)
-  fmt.Println(client.Name)
+	fmt.Println(client.Name)
 
 	downloadInforme(&client)
 }
@@ -42,14 +44,16 @@ func getDB() *gorm.DB {
 }
 
 func downloadInforme(c *Client) {
-	req, err := http.NewRequest("GET", "https://api.xpi.com.br/corporate-tax-ri-apim/v1/download/"+"5682826"+"?tradingAccount="+"5682826"+"&year=2023&reportType=1&description=0&brand=3&origin=HubAdvisorXP", nil)
+	req, err := http.NewRequest("GET", "https://api.xpi.com.br/corporate-tax-ri-apim/v1/download/"+c.Sinacor+"?tradingAccount="+c.Sinacor+"&year=2023&reportType=1&description=0&brand=3&origin=HubAdvisorXP", nil)
 
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	req.Header.Add("Authorization", os.Getenv("XP_BEARER"))
 	req.Header.Add("ocp-apim-subscription-key", os.Getenv("XP_SUBSCRIPTION_KEY"))
 	req.Header.Add("token", os.Getenv("XP_TOKEN"))
+	req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
 
 	res, err := http.DefaultClient.Do(req)
 
@@ -57,17 +61,29 @@ func downloadInforme(c *Client) {
 		fmt.Println(err)
 	}
 
-	w, err := os.Create(c.Cpfcnpj + ".pdf")
+	if res.StatusCode != http.StatusOK {
+		fmt.Println("bad status: " + res.Status)
+	}
+
+	w, err := os.Create(c.Cpfcnpj + "-" + time.Now().Format("2006-01-01") + ".pdf")
 
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	defer w.Close()
+	defer res.Body.Close()
 
-	io.Copy(w, res.Body)
+	bodyRes, _ := io.ReadAll(res.Body)
 
-	body, _ := io.ReadAll(res.Body)
+	body := string(bodyRes)
 
-	fmt.Println(string(body))
+	cleanBody := body[1 : len(body)-1]
+
+	decoded, _ := base64.StdEncoding.DecodeString(cleanBody)
+	fmt.Println(string(decoded))
+
+	w.WriteString(string(decoded))
+	if err != nil {
+		fmt.Println(err)
+	}
 }
