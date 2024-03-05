@@ -16,7 +16,7 @@ import (
 func main() {
 	godotenv.Load()
 	client := []Client{}
-  getDB().Where(map[string]interface{}{"broker": "2", "status": 1}).Find(&client)
+	getDB().Where(map[string]interface{}{"broker": "2", "status": 1}).Find(&client)
 
 	for _, c := range client {
 		downloadInforme(&c)
