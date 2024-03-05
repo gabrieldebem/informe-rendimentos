@@ -15,13 +15,12 @@ import (
 
 func main() {
 	godotenv.Load()
-	client := Client{
-		Broker: 2,
-	}
-	getDB().First(&client, 1)
-	fmt.Println(client.Name)
+	client := []Client{}
+  getDB().Where(map[string]interface{}{"broker": "2", "status": 1}).Find(&client)
 
-	downloadInforme(&client)
+	for _, c := range client {
+		downloadInforme(&c)
+	}
 }
 
 type Client struct {
@@ -80,7 +79,6 @@ func downloadInforme(c *Client) {
 	cleanBody := body[1 : len(body)-1]
 
 	decoded, _ := base64.StdEncoding.DecodeString(cleanBody)
-	fmt.Println(string(decoded))
 
 	w.WriteString(string(decoded))
 	if err != nil {
